@@ -19,12 +19,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-  git zip unzip ant openjdk-17-jdk python3-pip \
-            python3-venv build-essential autoconf libtool \
-            pkg-config zlib1g-dev libncurses5-dev \
-            libncursesw5-dev cmake libffi-dev libssl-dev
+            sudo apt-get install -y \
+git zip unzip ant openjdk-17-jdk python3-pip \
+python3-venv build-essential autoconf libtool \
+pkg-config zlib1g-dev libncurses5-dev \
+libncursesw5-dev cmake libffi-dev libssl-dev
 
       - name: Install Buildozer
         run: |
