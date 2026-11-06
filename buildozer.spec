@@ -12,10 +12,11 @@ android.api = 35
 android.minapi = 23
 android.ndk = 25b
 android.permissions = INTERNET,ACCESS_NETWORK_STATE
-android.archs = arm64-v8a,armeabi-v7a
+android.archs = arm64-v8a
 android.allow_backup = False
 android.accept_sdk_license = True
 p4a.branch = develop
+
 [buildozer]
 log_level = 2
 warn_on_root = 1
