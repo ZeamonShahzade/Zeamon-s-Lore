@@ -31,9 +31,11 @@ jobs:
           python3 -m pip install --user --upgrade pip
           python3 -m pip install --user buildozer cython==0.29.36
 
-      - name: Build APK
+            - name: Build APK
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          export PATH="$JAVA_HOME/bin:$HOME/.local/bin:$PATH"
+          java -version
           buildozer android debug
 
       - name: Upload APK
