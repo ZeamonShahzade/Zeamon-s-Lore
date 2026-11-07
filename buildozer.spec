@@ -1,14 +1,15 @@
 [app]
-title = Zaimon the Mote Shahzade
+title = Zaemon Mote Shahzade
 package.name = zaimon
 package.domain = com.zaimon.downloader
+version = 1.4.0
 
 source.dir = .
 source.include_exts = py,json,png,jpg
 source.exclude_dirs = bin,.buildozer,__pycache__,.git,.github
 source.exclude_patterns = *_reference.png, README*, *.txt
 
-# App icon (points to your app_logo.png)
+# App icon
 icon.filename = %(source.dir)s/app_logo.png
 
 # Python requirements
