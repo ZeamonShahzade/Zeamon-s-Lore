@@ -4,24 +4,24 @@ package.name = zaimon
 package.domain = com.zaimon.downloader
 
 source.dir = .
-source.include_exts = py,kv,json,png,jpg
-version = 1.0.0
+source.include_exts = py,json,png,jpg
+source.exclude_dirs = bin,.buildozer,__pycache__,.git,.github
+source.exclude_patterns = *_reference.png, README*, *.txt
 
-# App icon
-
+# App icon (points to your app_logo.png)
+icon.filename = %(source.dir)s/app_logo.png
 
 # Python requirements
-requirements = python3,kivy,yt-dlp,androidstorage4kivy
+requirements = python3,kivy==2.3.0,yt-dlp,certifi,androidstorage4kivy
 
 # Display
 orientation = portrait
 fullscreen = 0
 
 # Android configuration
-android.api = 35
+android.api = 34
 android.minapi = 23
-android.ndk = 25b
-android.permissions = INTERNET,ACCESS_NETWORK_STATE
+android.permissions = INTERNET,ACCESS_NETWORK_STATE,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 android.archs = arm64-v8a
 android.allow_backup = False
 android.accept_sdk_license = True
