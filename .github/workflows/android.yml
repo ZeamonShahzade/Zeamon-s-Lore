@@ -14,9 +14,11 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+      # 1. Checkout repository
       - name: Checkout source
         uses: actions/checkout@v4
 
+      # 2. Install dependencies
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -28,12 +30,14 @@ jobs:
             pkg-config zlib1g-dev libncurses5-dev \
             libncursesw5-dev cmake libffi-dev libssl-dev
 
+      # 3. Configure Java 17
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
+      # 4. Verify Java
       - name: Verify Java 17
         run: |
           echo "JAVA_HOME=$JAVA_HOME"
@@ -42,6 +46,7 @@ jobs:
           javac -version
           readlink -f "$(which java)"
 
+      # 5. Cache Android tools
       - name: Cache Buildozer and Android SDK/NDK
         uses: actions/cache@v4
         with:
@@ -52,20 +57,22 @@ jobs:
           restore-keys: |
             buildozer-${{ runner.os }}-
 
+      # 6. Install Buildozer
       - name: Install Buildozer
         run: |
           python3 -m pip install --user --upgrade pip
           python3 -m pip install --user buildozer cython==0.29.36
 
+      # 7. Build Android APK
       - name: Build APK
         run: |
           export JAVA_HOME
-          export PATH="$JAVA_HOME/bin:$HOME/.local/bin:/usr/bin:$PATH"
           export ANT_HOME=/usr/share/ant
-          export PATH="$ANT_HOME/bin:$PATH"
+          export PATH="$JAVA_HOME/bin:$ANT_HOME/bin:$HOME/.local/bin:/usr/bin:$PATH"
           ant -version
           buildozer android debug
 
+      # 8. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
