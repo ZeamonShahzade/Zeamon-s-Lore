@@ -20,6 +20,7 @@ from kivy.uix.button import Button
 from kivy.uix.spinner import Spinner
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.widget import Widget
+from kivy.uix.image import Image
 
 class YTDLPLogger:
     """Keep yt-dlp messages away from Android's redirected console streams."""
@@ -188,7 +189,7 @@ class ZaemonApp(App):
 
     def build_navigation(self):
         nav = Panel(
-            orientation="horizontal", size_hint_y=None, height=dp(64),
+            orientation="horizontal", size_hint_y=None, height=dp(58),
             padding=[dp(5), dp(5)], spacing=dp(5),
             bg=(0.055, 0.030, 0.080, 1),
         )
@@ -247,38 +248,47 @@ class ZaemonApp(App):
         )
 
     def show_home(self):
-        scroll = ScrollView(do_scroll_x=False, bar_width=dp(3))
+        scroll = ScrollView(do_scroll_x=False, bar_width=dp(2))
         body = BoxLayout(
             orientation="vertical", size_hint_y=None,
-            spacing=dp(11), padding=[0, dp(3), 0, dp(8)],
+            spacing=dp(10), padding=[dp(1), dp(4), dp(1), dp(10)],
         )
         body.bind(minimum_height=body.setter("height"))
 
         hero = Panel(
-            orientation="vertical", size_hint_y=None, height=dp(116),
-            padding=[dp(14), dp(10)], spacing=dp(2),
-            bg=(0.105, 0.035, 0.16, 1),
+            orientation="horizontal", size_hint_y=None, height=dp(184),
+            padding=[dp(14), dp(10)], spacing=dp(5),
+            bg=(0.075, 0.025, 0.12, 1),
         )
-        hero.add_widget(ZLabel(
-            text="YOUR DOWNLOADS, YOUR KINGDOM.", size=15,
-            bold=True, color=WHITE, halign="center",
+        copy = BoxLayout(orientation="vertical", spacing=dp(6))
+        copy.size_hint_x = .62
+        copy.add_widget(ZLabel(
+            text="[b]YOUR DOWNLOADS,\\nYOUR KINGDOM.[/b]",
+            size=17, bold=True, markup=True,
         ))
-        hero.add_widget(ZLabel(
-            text="Paste a link. Choose your format. Let Zaemon do the rest.",
-            size=10, color=MUTED, halign="center",
+        copy.add_widget(ZLabel(
+            text="Paste a link. Choose your format.\\nLet Zaemon do the rest.",
+            size=11, color=MUTED,
         ))
-        hero.add_widget(ZLabel(
+        copy.add_widget(ZLabel(
             text="MADE FOR YOUR MEDIA LIBRARY",
-            size=10, color=PINK, halign="center",
+            size=9, color=PINK, bold=True,
         ))
+        hero.add_widget(copy)
+        hero_art = Image(
+            source=os.path.join(os.path.dirname(__file__), "zaemon_hero.png"),
+            size_hint=(.38, 1), allow_stretch=True, keep_ratio=False,
+            opacity=.94,
+        )
+        hero.add_widget(hero_art)
         body.add_widget(hero)
 
-        link_card = self.make_card(height=105, padding=dp(11), spacing=dp(7))
+        link_card = self.make_card(height=104, padding=dp(11), spacing=dp(7))
         link_card.add_widget(ZLabel(
-            text="VIDEO OR AUDIO LINK", size=10, color=MUTED, bold=True,
-            size_hint_y=None, height=dp(17),
+            text="VIDEO OR AUDIO LINK", size=11, color=WHITE, bold=True,
+            size_hint_y=None, height=dp(18),
         ))
-        row = BoxLayout(size_hint_y=None, height=dp(47), spacing=dp(6))
+        row = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(7))
         self.url_input = TextInput(
             hint_text="Paste video link here...", multiline=False,
             font_size=sp(13), foreground_color=WHITE,
@@ -289,7 +299,7 @@ class ZaemonApp(App):
         row.add_widget(self.url_input)
         paste = ZButton(
             text="PASTE", bg=PURPLE_DARK,
-            size_hint_x=None, width=dp(72), font_size=sp(11),
+            size_hint_x=None, width=dp(78), font_size=sp(11),
         )
         paste.bind(on_release=self.paste_clipboard)
         row.add_widget(paste)
@@ -297,10 +307,10 @@ class ZaemonApp(App):
         body.add_widget(link_card)
 
         body.add_widget(ZLabel(
-            text="DOWNLOAD AS", size=11, color=MUTED, bold=True,
+            text="DOWNLOAD AS", size=11, color=PINK, bold=True,
             size_hint_y=None, height=dp(18),
         ))
-        mode_row = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(7))
+        mode_row = BoxLayout(size_hint_y=None, height=dp(46), spacing=dp(7))
         self.mode_spinner = self.make_spinner(
             "Video (MP4)", ("Video (MP4)", "Audio (MP3)")
         )
@@ -313,19 +323,19 @@ class ZaemonApp(App):
 
         self.download_btn = ZButton(
             text="DOWNLOAD", bg=PURPLE,
-            size_hint_y=None, height=dp(55), font_size=sp(17),
+            size_hint_y=None, height=dp(56), font_size=sp(17),
         )
         self.download_btn.bind(on_release=self.on_download)
         body.add_widget(self.download_btn)
 
-        progress = self.make_card(height=83, padding=dp(11), spacing=dp(6))
+        progress = self.make_card(height=92, padding=dp(11), spacing=dp(7))
         progress.add_widget(ZLabel(
-            text="DOWNLOAD PROGRESS", size=10, color=MUTED, bold=True,
-            size_hint_y=None, height=dp(15),
+            text="DOWNLOAD PROGRESS", size=11, color=PINK, bold=True,
+            size_hint_y=None, height=dp(17),
         ))
         self.progress_bar = ProgressBar(
             max=100, value=self.root_ui.progress_value,
-            size_hint_y=None, height=dp(9),
+            size_hint_y=None, height=dp(10),
         )
         progress.add_widget(self.progress_bar)
         self.status_label = ZLabel(
@@ -384,15 +394,14 @@ class ZaemonApp(App):
 
     def download_worker(self, link, quality):
         try:
-            fmt = "best[ext=mp4]/best"
+            fmt = "best/bestvideo+bestaudio"
             if quality != "Best quality":
                 height = quality.replace("p", "")
-                fmt = (
-                    f"best[height<={height}][ext=mp4]/"
-                    f"best[height<={height}]/best"
-                )
+                fmt = f"best[height<={height}]/best"
             options = {
                 "format": fmt,
+                "format_sort": ["res", "ext:mp4:m4a"],
+                "merge_output_format": "mp4",
                 "outtmpl": os.path.join(
                     self.download_dir, "%(title).100s.%(ext)s"
                 ),
