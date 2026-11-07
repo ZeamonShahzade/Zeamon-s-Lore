@@ -2,6 +2,7 @@ import os
 import re
 import json
 import threading
+import sys
 from datetime import datetime
 
 from kivy.app import App
@@ -374,9 +375,21 @@ class ZaimonApp(App):
                 "fragment_retries": 3,
                 "progress_hooks": [self.progress_hook],
             }
-            with yt_dlp.YoutubeDL(options) as downloader:
-                info = downloader.extract_info(link, download=True)
-                filename = downloader.prepare_filename(info)
+            # Kivy redirects stderr to its own logger stream. yt-dlp may
+            # write to stderr internally, so give it a normal file stream
+            # while the download runs, then restore Kivy's stream.
+            original_stderr = sys.stderr
+            error_log_path = os.path.join(
+                self.user_data_dir, "yt_dlp_errors.log"
+            )
+            try:
+                with open(error_log_path, "a", encoding="utf-8") as error_log:
+                    sys.stderr = error_log
+                    with yt_dlp.YoutubeDL(options) as downloader:
+                        info = downloader.extract_info(link, download=True)
+                        filename = downloader.prepare_filename(info)
+            finally:
+                sys.stderr = original_stderr
 
             message = "Download complete. Saved in Zaimon's folder."
             if SharedStorage is not None and os.path.isfile(filename):
