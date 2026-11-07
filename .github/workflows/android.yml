@@ -57,8 +57,8 @@ jobs:
           python3 -m pip install --user --upgrade pip
           python3 -m pip install --user buildozer cython==0.29.36
 
-      - name: Build APK
-      run: |
+        - name: Build APK
+        run: |
           export JAVA_HOME
           export PATH="$JAVA_HOME/bin:$HOME/.local/bin:/usr/bin:$PATH"
           export ANT_HOME=/usr/share/ant
