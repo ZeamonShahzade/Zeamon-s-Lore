@@ -20,6 +20,18 @@ from kivy.uix.spinner import Spinner
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.widget import Widget
 
+class YTDLPLogger:
+    """Keep yt-dlp messages away from Android's redirected console streams."""
+    def debug(self, message):
+        pass
+
+    def warning(self, message):
+        pass
+
+    def error(self, message):
+        pass
+
+
 try:
     import yt_dlp
 except Exception:
@@ -126,7 +138,7 @@ class ZaimonApp(App):
             padding=dp(2),
         )
         logo.add_widget(ZLabel(
-            text="♛", size=27, color=PINK, halign="center",
+            text="Z", size=27, color=PINK, halign="center",
         ))
         header.add_widget(logo)
 
@@ -217,7 +229,7 @@ class ZaimonApp(App):
             bg=(0.105, 0.035, 0.16, 1),
         )
         hero.add_widget(ZLabel(
-            text="♛  YOUR DOWNLOADS, YOUR KINGDOM.", size=15,
+            text="YOUR DOWNLOADS, YOUR KINGDOM.", size=15,
             bold=True, color=WHITE, halign="center",
         ))
         hero.add_widget(ZLabel(
@@ -225,7 +237,7 @@ class ZaimonApp(App):
             size=10, color=MUTED, halign="center",
         ))
         hero.add_widget(ZLabel(
-            text="✦  Made for your media library  ✦",
+            text="MADE FOR YOUR MEDIA LIBRARY",
             size=10, color=PINK, halign="center",
         ))
         body.add_widget(hero)
@@ -269,7 +281,7 @@ class ZaimonApp(App):
         body.add_widget(mode_row)
 
         self.download_btn = ZButton(
-            text="⇩   DOWNLOAD", bg=PURPLE,
+            text="DOWNLOAD", bg=PURPLE,
             size_hint_y=None, height=dp(55), font_size=sp(17),
         )
         self.download_btn.bind(on_release=self.on_download)
@@ -356,6 +368,8 @@ class ZaimonApp(App):
                 "noplaylist": True,
                 "quiet": True,
                 "no_warnings": True,
+                "noprogress": True,
+                "logger": YTDLPLogger(),
                 "retries": 3,
                 "fragment_retries": 3,
                 "progress_hooks": [self.progress_hook],
@@ -496,7 +510,7 @@ class ZaimonApp(App):
                 bg=(0.085, 0.045, 0.12, 1),
             )
             empty.add_widget(ZLabel(
-                text="🐾", size=31, color=PINK, halign="center",
+                text="Z", size=31, color=PINK, halign="center",
             ))
             empty.add_widget(ZLabel(
                 text="No downloads yet", size=16, bold=True,
@@ -524,7 +538,7 @@ class ZaimonApp(App):
                     bg=(0.22, 0.07, 0.31, 1), padding=dp(3),
                 )
                 icon.add_widget(ZLabel(
-                    text="♫" if item.get("mode") == "Audio" else "▶",
+                    text="A" if item.get("mode") == "Audio" else "V",
                     size=22, color=PINK, halign="center",
                 ))
                 card.add_widget(icon)
@@ -538,7 +552,7 @@ class ZaimonApp(App):
                     size=9, color=MUTED,
                 ))
                 details.add_widget(ZLabel(
-                    text=item.get("date", "Completed") + "  •  ✓ Completed",
+                    text=item.get("date", "Completed") + "  -  Completed",
                     size=9, color=GREEN,
                 ))
                 card.add_widget(details)
