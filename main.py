@@ -94,8 +94,11 @@ class ZLabel(Label):
         self.bold = bold
         self.halign = kwargs.get("halign", "left")
         self.valign = "middle"
-        self.shorten = True
-        self.shorten_from = "right"
+        self.shorten = False
+        self.text_size = (self.width, None)
+        self.bind(width=lambda instance, value: setattr(
+            instance, "text_size", (value, None)
+        ))
 
 
 class ZaimonRoot(BoxLayout):
@@ -120,7 +123,7 @@ class ZaimonApp(App):
         self.root_ui = ZaimonRoot(
             orientation="vertical",
             spacing=dp(8),
-            padding=[dp(13), dp(9), dp(13), dp(7)],
+            padding=[dp(14), dp(14), dp(14), dp(8)],
         )
         self.build_header()
         self.content = BoxLayout(orientation="vertical")
@@ -131,7 +134,7 @@ class ZaimonApp(App):
 
     def build_header(self):
         header = BoxLayout(
-            size_hint_y=None, height=dp(54), spacing=dp(10),
+            size_hint_y=None, height=dp(62), spacing=dp(10),
         )
         logo = Panel(
             bg=(0.20, 0.055, 0.30, 1),
@@ -156,15 +159,15 @@ class ZaimonApp(App):
 
     def build_navigation(self):
         nav = Panel(
-            orientation="horizontal", size_hint_y=None, height=dp(62),
+            orientation="horizontal", size_hint_y=None, height=dp(58),
             padding=[dp(5), dp(5)], spacing=dp(5),
             bg=(0.055, 0.030, 0.080, 1),
         )
         self.nav_buttons = {}
         for key, label in (
-            ("home", "⌂\nHome"),
-            ("downloads", "⇩\nDownloads"),
-            ("settings", "⚙\nSettings"),
+            ("home", "HOME"),
+            ("downloads", "DOWNLOADS"),
+            ("settings", "SETTINGS"),
         ):
             btn = ZButton(
                 text=label, bg=(0.14, 0.075, 0.19, 1),
@@ -580,46 +583,64 @@ class ZaimonApp(App):
         self.navigate("downloads")
 
     def show_settings(self):
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
+        scroll = ScrollView(do_scroll_x=False, bar_width=dp(3))
+        body = BoxLayout(
+            orientation="vertical",
+            size_hint_y=None,
+            spacing=dp(12),
+            padding=[0, dp(6), 0, dp(18)],
+        )
+        body.bind(minimum_height=body.setter("height"))
         body.add_widget(self.section_title(
             "Settings", "Make Zaimon feel at home."
         ))
 
-        storage = self.make_card(padding=dp(14), spacing=dp(6))
+        storage = self.make_card(height=126, padding=dp(14), spacing=dp(8))
         storage.add_widget(ZLabel(
             text="DOWNLOAD LOCATION", size=10, color=MUTED, bold=True,
+            size_hint_y=None, height=dp(18),
         ))
-        storage.add_widget(ZLabel(
-            text=self.download_dir, size=10, color=WHITE,
-        ))
+        location = ZLabel(
+            text=self.download_dir, size=10, color=WHITE, halign="left",
+            size_hint_y=None, height=dp(70),
+        )
+        location.text_size = (Window.width - dp(76), None)
+        storage.add_widget(location)
         body.add_widget(storage)
 
-        about = self.make_card(padding=dp(14), spacing=dp(6))
+        about = self.make_card(height=150, padding=dp(14), spacing=dp(7))
         about.add_widget(ZLabel(
             text="ZAIMON THE MOTE SHAHZADE", size=14, bold=True,
+            size_hint_y=None, height=dp(22),
         ))
         about.add_widget(ZLabel(
             text="Version 1.2  •  Royal Purple Edition",
             size=10, color=MUTED,
+            size_hint_y=None, height=dp(18),
         ))
         about.add_widget(ZLabel(
-            text="Video downloads use yt-dlp. Download only content you own "
-                 "or have permission to save.",
-            size=10, color=MUTED,
+            text="Video downloads use yt-dlp. Download only content "
+                 "you own or have permission to save.",
+            size=10, color=MUTED, halign="left",
+            size_hint_y=None, height=dp(64),
         ))
         body.add_widget(about)
 
-        formats = self.make_card(padding=dp(14), spacing=dp(6))
+        formats = self.make_card(height=146, padding=dp(14), spacing=dp(7))
         formats.add_widget(ZLabel(
             text="FORMAT SUPPORT", size=10, color=MUTED, bold=True,
+            size_hint_y=None, height=dp(18),
         ))
         formats.add_widget(ZLabel(
-            text="MP4 video: enabled\nMP3 audio: requires an Android-compatible "
-                 "FFmpeg package and is not enabled in this build.",
-            size=11,
+            text="MP4 video: enabled when provided by the source.\\n"
+                 "MP3 audio: requires an Android-compatible FFmpeg "
+                 "package and is not enabled in this build.",
+            size=10, color=WHITE, halign="left",
+            size_hint_y=None, height=dp(84),
         ))
         body.add_widget(formats)
-        self.content.add_widget(body)
+        scroll.add_widget(body)
+        self.content.add_widget(scroll)
 
 
 if __name__ == "__main__":
