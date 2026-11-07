@@ -9,7 +9,7 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.metrics import dp, sp
 from kivy.core.window import Window
-from kivy.graphics import Color, RoundedRectangle, Triangle, Line
+from kivy.graphics import Color, RoundedRectangle
 from kivy.properties import StringProperty, NumericProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
@@ -20,7 +20,7 @@ from kivy.uix.button import Button
 from kivy.uix.spinner import Spinner
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.widget import Widget
-from kivy.uix.image import Image
+from kivy.uix.image import Image as KivyImage
 
 class YTDLPLogger:
     """Keep yt-dlp messages away from Android's redirected console streams."""
@@ -74,29 +74,6 @@ class Panel(BoxLayout):
         self._shape.size = self.size
 
 
-class CrownLogo(Widget):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        with self.canvas:
-            Color(*PINK)
-            self.crown = Triangle(points=[])
-            self.base = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(2)])
-        self.bind(pos=self.redraw, size=self.redraw)
-
-    def redraw(self, *_):
-        x, y = self.pos
-        w, h = self.size
-        self.crown.points = [
-            x + .08*w, y + .43*h,
-            x + .24*w, y + .86*h,
-            x + .48*w, y + .58*h,
-            x + .73*w, y + .86*h,
-            x + .92*w, y + .43*h,
-        ]
-        self.base.pos = (x + .16*w, y + .24*h)
-        self.base.size = (.68*w, .15*h)
-
-
 class ZButton(Button):
     def __init__(self, bg=PURPLE, fg=WHITE, **kwargs):
         super().__init__(**kwargs)
@@ -120,9 +97,9 @@ class ZLabel(Label):
         self.valign = "middle"
         self.shorten = False
         self.text_size = (self.width, None)
-        self.bind(width=self._fit_text)
+        self.bind(width=self._update_text_size)
 
-    def _fit_text(self, *_):
+    def _update_text_size(self, *_):
         self.text_size = (self.width, None)
 
 
@@ -135,11 +112,6 @@ class ZaemonApp(App):
     def build(self):
         self.title = "Zaemon Mote Shahzade"
         Window.clearcolor = BG
-        try:
-            Window.statusbar = "black"
-            Window.navigationbar = "black"
-        except Exception:
-            pass
         self.download_dir = os.path.join(
             self.user_data_dir, "Downloads", "Zaemon"
         )
@@ -152,8 +124,8 @@ class ZaemonApp(App):
 
         self.root_ui = ZaemonRoot(
             orientation="vertical",
-            spacing=dp(8),
-            padding=[dp(13), dp(9), dp(13), dp(7)],
+            spacing=dp(6),
+            padding=[dp(12), dp(8), dp(12), dp(7)],
         )
         self.build_header()
         self.content = BoxLayout(orientation="vertical")
@@ -164,27 +136,24 @@ class ZaemonApp(App):
 
     def build_header(self):
         header = BoxLayout(
-            size_hint_y=None, height=dp(76), spacing=dp(10),
-            padding=[dp(4), dp(5), dp(4), dp(5)],
+            size_hint_y=None, height=dp(62), spacing=dp(9),
+            padding=[dp(2), dp(3), dp(2), dp(3)],
         )
-        logo_panel = Panel(
-            bg=(0.16, 0.045, 0.24, 1),
-            size_hint=(None, None), size=(dp(50), dp(50)),
-            padding=dp(9),
+        logo_path = os.path.join(os.path.dirname(__file__), "app_logo.png")
+        logo = KivyImage(
+            source=logo_path, size_hint=(None, None),
+            size=(dp(48), dp(48)), allow_stretch=True, keep_ratio=True,
         )
-        logo_panel.add_widget(CrownLogo())
-        header.add_widget(logo_panel)
-
-        titles = BoxLayout(orientation="vertical", spacing=dp(1))
+        header.add_widget(logo)
+        titles = BoxLayout(orientation="vertical", spacing=dp(0))
         titles.add_widget(ZLabel(
-            text="[b]ZAEMON[/b]", size=22, bold=True, markup=True,
+            text="[b]ZAEMON[/b]", size=19, bold=True, markup=True,
         ))
         titles.add_widget(ZLabel(
             text="MOTE SHAHZADE  |  VIDEO DOWNLOADER",
             size=8, color=PINK,
         ))
         header.add_widget(titles)
-
         self.root_ui.add_widget(header)
 
     def build_navigation(self):
@@ -194,11 +163,7 @@ class ZaemonApp(App):
             bg=(0.055, 0.030, 0.080, 1),
         )
         self.nav_buttons = {}
-        for key, label in (
-            ("home", "HOME"),
-            ("downloads", "DOWNLOADS"),
-            ("settings", "SETTINGS"),
-        ):
+        for key, label in (("home", "HOME"), ("downloads", "DOWNLOADS"), ("settings", "SETTINGS")):
             btn = ZButton(
                 text=label, bg=(0.14, 0.075, 0.19, 1),
                 font_size=sp(10),
@@ -251,44 +216,42 @@ class ZaemonApp(App):
         scroll = ScrollView(do_scroll_x=False, bar_width=dp(2))
         body = BoxLayout(
             orientation="vertical", size_hint_y=None,
-            spacing=dp(10), padding=[dp(1), dp(4), dp(1), dp(10)],
+            spacing=dp(10), padding=[dp(1), dp(3), dp(1), dp(10)],
         )
         body.bind(minimum_height=body.setter("height"))
 
         hero = Panel(
-            orientation="horizontal", size_hint_y=None, height=dp(184),
-            padding=[dp(14), dp(10)], spacing=dp(5),
+            orientation="horizontal", size_hint_y=None, height=dp(166),
+            padding=[dp(10), dp(9)], spacing=dp(8),
             bg=(0.075, 0.025, 0.12, 1),
         )
-        copy = BoxLayout(orientation="vertical", spacing=dp(6))
-        copy.size_hint_x = .62
-        copy.add_widget(ZLabel(
-            text="[b]YOUR DOWNLOADS,\\nYOUR KINGDOM.[/b]",
-            size=17, bold=True, markup=True,
-        ))
-        copy.add_widget(ZLabel(
-            text="Paste a link. Choose your format.\\nLet Zaemon do the rest.",
-            size=11, color=MUTED,
-        ))
-        copy.add_widget(ZLabel(
-            text="MADE FOR YOUR MEDIA LIBRARY",
-            size=9, color=PINK, bold=True,
-        ))
-        hero.add_widget(copy)
-        hero_art = Image(
-            source=os.path.join(os.path.dirname(__file__), "zaemon_hero.png"),
-            size_hint=(.38, 1), allow_stretch=True, keep_ratio=False,
-            opacity=.94,
+        hero_logo = KivyImage(
+            source=os.path.join(os.path.dirname(__file__), "app_logo.png"),
+            size_hint=(None, 1), width=dp(132),
+            allow_stretch=True, keep_ratio=True,
         )
-        hero.add_widget(hero_art)
+        hero.add_widget(hero_logo)
+        hero_copy = BoxLayout(orientation="vertical", spacing=dp(5))
+        hero_copy.add_widget(ZLabel(
+            text="[b]YOUR DOWNLOADS,\nYOUR KINGDOM.[/b]",
+            size=15, bold=True, markup=True,
+        ))
+        hero_copy.add_widget(ZLabel(
+            text="Paste a link. Choose your format.\nLet Zaemon do the rest.",
+            size=10, color=MUTED,
+        ))
+        hero_copy.add_widget(ZLabel(
+            text="MOTE SHAHZADE", size=9, color=PINK, bold=True,
+        ))
+        hero.add_widget(hero_copy)
         body.add_widget(hero)
 
         link_card = self.make_card(height=104, padding=dp(11), spacing=dp(7))
         link_card.add_widget(ZLabel(
-            text="VIDEO OR AUDIO LINK", size=11, color=WHITE, bold=True,
-            size_hint_y=None, height=dp(18),
+            text="VIDEO OR AUDIO LINK", size=10, color=PINK, bold=True,
+            size_hint_y=None, height=dp(17),
         ))
-        row = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(7))
+        row = BoxLayout(size_hint_y=None, height=dp(47), spacing=dp(6))
         self.url_input = TextInput(
             hint_text="Paste video link here...", multiline=False,
             font_size=sp(13), foreground_color=WHITE,
@@ -297,20 +260,18 @@ class ZaemonApp(App):
             padding=[dp(10), dp(12)], cursor_color=PINK,
         )
         row.add_widget(self.url_input)
-        paste = ZButton(
-            text="PASTE", bg=PURPLE_DARK,
-            size_hint_x=None, width=dp(78), font_size=sp(11),
-        )
+        paste = ZButton(text="PASTE", bg=PURPLE_DARK,
+                        size_hint_x=None, width=dp(74), font_size=sp(11))
         paste.bind(on_release=self.paste_clipboard)
         row.add_widget(paste)
         link_card.add_widget(row)
         body.add_widget(link_card)
 
         body.add_widget(ZLabel(
-            text="DOWNLOAD AS", size=11, color=PINK, bold=True,
-            size_hint_y=None, height=dp(18),
+            text="DOWNLOAD AS", size=10, color=PINK, bold=True,
+            size_hint_y=None, height=dp(17),
         ))
-        mode_row = BoxLayout(size_hint_y=None, height=dp(46), spacing=dp(7))
+        mode_row = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(7))
         self.mode_spinner = self.make_spinner(
             "Video (MP4)", ("Video (MP4)", "Audio (MP3)")
         )
@@ -323,19 +284,19 @@ class ZaemonApp(App):
 
         self.download_btn = ZButton(
             text="DOWNLOAD", bg=PURPLE,
-            size_hint_y=None, height=dp(56), font_size=sp(17),
+            size_hint_y=None, height=dp(54), font_size=sp(16),
         )
         self.download_btn.bind(on_release=self.on_download)
         body.add_widget(self.download_btn)
 
-        progress = self.make_card(height=92, padding=dp(11), spacing=dp(7))
+        progress = self.make_card(height=88, padding=dp(11), spacing=dp(6))
         progress.add_widget(ZLabel(
-            text="DOWNLOAD PROGRESS", size=11, color=PINK, bold=True,
-            size_hint_y=None, height=dp(17),
+            text="DOWNLOAD PROGRESS", size=10, color=PINK, bold=True,
+            size_hint_y=None, height=dp(16),
         ))
         self.progress_bar = ProgressBar(
             max=100, value=self.root_ui.progress_value,
-            size_hint_y=None, height=dp(10),
+            size_hint_y=None, height=dp(9),
         )
         progress.add_widget(self.progress_bar)
         self.status_label = ZLabel(
@@ -343,11 +304,10 @@ class ZaemonApp(App):
         )
         progress.add_widget(self.status_label)
         body.add_widget(progress)
-
         body.add_widget(ZLabel(
             text="Only download content you own or have permission to save.",
             size=9, color=MUTED, halign="center",
-            size_hint_y=None, height=dp(24),
+            size_hint_y=None, height=dp(23),
         ))
         scroll.add_widget(body)
         self.content.add_widget(scroll)
@@ -394,14 +354,12 @@ class ZaemonApp(App):
 
     def download_worker(self, link, quality):
         try:
-            fmt = "best/bestvideo+bestaudio"
+            fmt = "best"
             if quality != "Best quality":
                 height = quality.replace("p", "")
                 fmt = f"best[height<={height}]/best"
             options = {
                 "format": fmt,
-                "format_sort": ["res", "ext:mp4:m4a"],
-                "merge_output_format": "mp4",
                 "outtmpl": os.path.join(
                     self.download_dir, "%(title).100s.%(ext)s"
                 ),
@@ -527,11 +485,9 @@ class ZaemonApp(App):
             pass
 
     def show_downloads(self):
-        scroll = ScrollView(do_scroll_x=False, bar_width=dp(3))
-        body = BoxLayout(
-            orientation="vertical", size_hint_y=None,
-            spacing=dp(9), padding=[dp(2), dp(6), dp(2), dp(12)],
-        )
+        scroll = ScrollView(do_scroll_x=False, bar_width=dp(2))
+        body = BoxLayout(orientation="vertical", size_hint_y=None,
+                         spacing=dp(9), padding=[dp(1), dp(5), dp(1), dp(12)])
         body.bind(minimum_height=body.setter("height"))
         body.add_widget(self.section_title(
             "Downloads", "Your saved videos and audio in one place."
@@ -567,7 +523,7 @@ class ZaemonApp(App):
                 bg=(0.085, 0.045, 0.12, 1),
             )
             empty.add_widget(ZLabel(
-                text="Z", size=31, color=PINK, halign="center",
+                text="ZAEMON", size=20, color=PINK, halign="center", bold=True,
             ))
             empty.add_widget(ZLabel(
                 text="No downloads yet", size=16, bold=True,
@@ -625,62 +581,59 @@ class ZaemonApp(App):
         self.navigate("downloads")
 
     def show_settings(self):
-        scroll = ScrollView(
-            do_scroll_x=False, do_scroll_y=True,
-            bar_width=dp(3), scroll_type=["bars", "content"],
-        )
+        scroll = ScrollView(do_scroll_x=False, bar_width=dp(2))
         body = BoxLayout(
             orientation="vertical", size_hint_y=None,
-            spacing=dp(12), padding=[dp(2), dp(8), dp(2), dp(18)],
+            spacing=dp(10), padding=[dp(1), dp(5), dp(1), dp(14)],
         )
         body.bind(minimum_height=body.setter("height"))
-
         body.add_widget(self.section_title(
             "Settings", "Make Zaemon feel at home."
         ))
 
-        storage = self.make_card(height=118, padding=dp(14), spacing=dp(8))
+        storage = self.make_card(height=112, padding=dp(12), spacing=dp(6))
         storage.add_widget(ZLabel(
             text="DOWNLOAD LOCATION", size=10, color=PINK, bold=True,
-            size_hint_y=None, height=dp(18),
+            size_hint_y=None, height=dp(17),
         ))
-        location = ZLabel(
+        storage.add_widget(ZLabel(
             text=self.download_dir, size=10, color=WHITE,
-            size_hint_y=None, height=dp(62),
-        )
-        storage.add_widget(location)
+            size_hint_y=None, height=dp(68),
+        ))
         body.add_widget(storage)
 
-        about = self.make_card(height=112, padding=dp(14), spacing=dp(6))
+        about = self.make_card(height=112, padding=dp(12), spacing=dp(5))
         about.add_widget(ZLabel(
-            text="ZAEMON MOTE SHAHZADE", size=14, bold=True,
-            size_hint_y=None, height=dp(22),
+            text="ZAEMON MOTE SHAHZADE", size=13, bold=True,
+            size_hint_y=None, height=dp(21),
         ))
         about.add_widget(ZLabel(
-            text="Version 1.4  |  Royal Purple Edition",
-            size=10, color=MUTED,
-            size_hint_y=None, height=dp(18),
+            text="Version 1.3  |  Royal Purple Edition",
+            size=10, color=MUTED, size_hint_y=None, height=dp(17),
         ))
         about.add_widget(ZLabel(
-            text="A simple video downloader for Android.",
-            size=10, color=MUTED,
-            size_hint_y=None, height=dp(30),
+            text="Video downloads powered by yt-dlp. Save only content you have permission to download.",
+            size=10, color=MUTED, size_hint_y=None, height=dp(48),
         ))
         body.add_widget(about)
 
-        formats = self.make_card(height=126, padding=dp(14), spacing=dp(7))
+        formats = self.make_card(height=112, padding=dp(12), spacing=dp(6))
         formats.add_widget(ZLabel(
             text="FORMAT SUPPORT", size=10, color=PINK, bold=True,
-            size_hint_y=None, height=dp(18),
+            size_hint_y=None, height=dp(17),
         ))
         formats.add_widget(ZLabel(
-            text="MP4 video  |  Enabled\\nMP3 audio  |  Not enabled in this build "
-                 "(requires Android-compatible FFmpeg).",
-            size=10, color=WHITE,
-            size_hint_y=None, height=dp(78),
+            text="MP4 video: available when provided by source.\nMP3 audio: not enabled in this build (FFmpeg required).",
+            size=10, color=WHITE, size_hint_y=None, height=dp(70),
         ))
         body.add_widget(formats)
 
+        logo_card = self.make_card(height=94, padding=dp(10), spacing=dp(4))
+        logo_card.add_widget(KivyImage(
+            source=os.path.join(os.path.dirname(__file__), "app_logo.png"),
+            size_hint=(1, 1), allow_stretch=True, keep_ratio=True,
+        ))
+        body.add_widget(logo_card)
         scroll.add_widget(body)
         self.content.add_widget(scroll)
 
