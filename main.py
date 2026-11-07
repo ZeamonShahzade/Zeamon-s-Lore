@@ -1,12 +1,24 @@
 import os
 import re
+import json
 import threading
+from datetime import datetime
 
 from kivy.app import App
 from kivy.clock import Clock
-from kivy.lang import Builder
+from kivy.metrics import dp, sp
+from kivy.core.window import Window
+from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.properties import StringProperty, NumericProperty
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.uix.spinner import Spinner
+from kivy.uix.progressbar import ProgressBar
+from kivy.uix.widget import Widget
 
 try:
     import yt_dlp
@@ -18,126 +30,259 @@ try:
 except Exception:
     SharedStorage = None
 
-KV = """
-<RootUI>:
-    orientation: "vertical"
-    padding: "18dp"
-    spacing: "12dp"
-    canvas.before:
-        Color:
-            rgba: .035, .035, .055, 1
-        Rectangle:
-            pos: self.pos
-            size: self.size
-    BoxLayout:
-        size_hint_y: None
-        height: "66dp"
-        Label:
-            text: "[b]ZAIMON[/b] [color=#B58CFF]THE MOTE SHAHZADE[/color]\\n[color=#A7A1B5]Your downloads, with a little cat attitude.[/color]"
-            markup: True
-            halign: "left"
-            valign: "middle"
-            text_size: self.size
-        Label:
-            text: "ฅ^•ﻌ•^ฅ"
-            font_size: "28sp"
-            size_hint_x: None
-            width: "65dp"
-            color: .78, .62, 1, 1
-    Label:
-        text: "Paste a video or audio link"
-        size_hint_y: None
-        height: "26dp"
-        halign: "left"
-        text_size: self.size
-    TextInput:
-        id: url_input
-        hint_text: "https://..."
-        multiline: False
-        size_hint_y: None
-        height: "48dp"
-        background_color: .10, .10, .15, 1
-        foreground_color: 1, 1, 1, 1
-    BoxLayout:
-        size_hint_y: None
-        height: "44dp"
-        spacing: "8dp"
-        Spinner:
-            id: mode
-            text: "MP4 Video"
-            values: ["MP4 Video", "MP3 Audio"]
-        Spinner:
-            id: quality
-            text: "Best quality"
-            values: ["Best quality", "1080p", "720p", "480p", "360p"]
-    Button:
-        text: "DOWNLOAD"
-        size_hint_y: None
-        height: "52dp"
-        background_normal: ""
-        background_color: .48, .27, .78, 1
-        on_release: app.start_download(url_input.text, mode.text, quality.text)
-    ProgressBar:
-        max: 100
-        value: root.progress_value
-        size_hint_y: None
-        height: "8dp"
-    Label:
-        text: root.status_text
-        size_hint_y: None
-        height: "58dp"
-        halign: "left"
-        valign: "middle"
-        text_size: self.size
-    Label:
-        text: root.folder_label
-        size_hint_y: None
-        height: "36dp"
-        font_size: "10sp"
-        color: .65, .62, .72, 1
-        halign: "left"
-        text_size: self.size
-    Label:
-        text: "Videos: Movies folder  •  Audio: Music folder"
-        font_size: "10sp"
-        color: .65, .62, .72, 1
-"""
+
+BG = (0.025, 0.018, 0.045, 1)
+CARD = (0.075, 0.045, 0.105, 1)
+CARD_2 = (0.105, 0.065, 0.145, 1)
+PURPLE = (0.66, 0.16, 0.98, 1)
+PINK = (0.98, 0.20, 0.75, 1)
+WHITE = (0.96, 0.93, 1, 1)
+MUTED = (0.68, 0.62, 0.75, 1)
+GREEN = (0.45, 0.90, 0.67, 1)
 
 
-class RootUI(BoxLayout):
+class Panel(BoxLayout):
+    def __init__(self, bg=CARD, radius=18, **kwargs):
+        super().__init__(**kwargs)
+        self._bg = bg
+        self._radius = radius
+        with self.canvas.before:
+            Color(*self._bg)
+            self._shape = RoundedRectangle(pos=self.pos, size=self.size,
+                                           radius=[dp(self._radius)])
+        self.bind(pos=self._update_shape, size=self._update_shape)
+
+    def _update_shape(self, *_):
+        self._shape.pos = self.pos
+        self._shape.size = self.size
+
+
+class ZButton(Button):
+    def __init__(self, bg=PURPLE, fg=WHITE, **kwargs):
+        super().__init__(**kwargs)
+        self.background_normal = ""
+        self.background_down = ""
+        self.background_color = bg
+        self.color = fg
+        self.font_size = sp(14)
+        self.bold = True
+
+
+class ZLabel(Label):
+    def __init__(self, color=WHITE, size=14, bold=False, **kwargs):
+        super().__init__(**kwargs)
+        self.color = color
+        self.font_size = sp(size)
+        self.bold = bold
+        self.halign = "left"
+        self.valign = "middle"
+
+
+class ZaimonRoot(BoxLayout):
     status_text = StringProperty("Ready when you are.")
     progress_value = NumericProperty(0)
-    folder_label = StringProperty("Zaimon / Downloads")
 
 
 class ZaimonApp(App):
     def build(self):
         self.title = "Zaimon the Mote Shahzade"
+        Window.clearcolor = BG
         self.download_dir = os.path.join(self.user_data_dir, "Downloads", "Zaimon")
         os.makedirs(self.download_dir, exist_ok=True)
-        self.root_widget = Builder.load_string(KV)
+        self.history_path = os.path.join(self.user_data_dir, "history.json")
+        self.history = self.load_history()
         self.download_running = False
-        return self.root_widget
+        self.root_ui = ZaimonRoot(orientation="vertical", spacing=dp(10),
+                                  padding=[dp(16), dp(12), dp(16), dp(8)])
+        self.build_header()
+        self.content = BoxLayout(orientation="vertical")
+        self.root_ui.add_widget(self.content)
+        self.build_navigation()
+        self.show_home()
+        return self.root_ui
 
-    def start_download(self, link, mode, quality):
-        link = (link or "").strip()
+    def build_header(self):
+        header = BoxLayout(size_hint_y=None, height=dp(62), spacing=dp(10))
+        logo_path = os.path.join(os.path.dirname(__file__), "icon.png")
+        if os.path.exists(logo_path):
+            from kivy.uix.image import Image
+            logo = Image(source=logo_path, size_hint=(None, None),
+                         size=(dp(54), dp(54)), allow_stretch=True,
+                         keep_ratio=True)
+            header.add_widget(logo)
+        else:
+            badge = Panel(bg=(0.20, 0.07, 0.30, 1), size_hint=(None, None),
+                          size=(dp(54), dp(54)), padding=dp(5))
+            badge.add_widget(ZLabel(text="🐾", size=25, color=PINK,
+                                    halign="center"))
+            header.add_widget(badge)
+
+        titles = BoxLayout(orientation="vertical", spacing=0)
+        titles.add_widget(ZLabel(text="[b]ZAIMON[/b]", markup=True,
+                                 size=21, color=WHITE))
+        titles.add_widget(ZLabel(text="THE MOTE SHAHZADE  ✦  DOWNLOADER",
+                                 size=9, color=MUTED))
+        header.add_widget(titles)
+        self.root_ui.add_widget(header)
+
+    def section_title(self, title, subtitle=None):
+        box = BoxLayout(orientation="vertical", size_hint_y=None,
+                        height=dp(54 if subtitle else 34), spacing=dp(1))
+        box.add_widget(ZLabel(text=title, size=21, bold=True))
+        if subtitle:
+            box.add_widget(ZLabel(text=subtitle, size=11, color=MUTED))
+        return box
+
+    def make_card(self, children=None, height=None, padding=dp(14), spacing=dp(10)):
+        card = Panel(orientation="vertical", padding=padding, spacing=spacing,
+                     size_hint_y=None)
+        if height:
+            card.height = dp(height)
+        if children:
+            for child in children:
+                card.add_widget(child)
+        return card
+
+    def build_navigation(self):
+        nav = Panel(orientation="horizontal", size_hint_y=None,
+                    height=dp(62), padding=[dp(6), dp(5)],
+                    spacing=dp(5), bg=(0.065, 0.035, 0.095, 1))
+        self.nav_buttons = {}
+        for key, label in [("home", "⌂  Home"),
+                           ("downloads", "⇩  Downloads"),
+                           ("settings", "⚙  Settings")]:
+            btn = ZButton(text=label, bg=(0.22, 0.08, 0.31, 1),
+                          font_size=sp(12))
+            btn.bind(on_release=lambda instance, k=key: self.navigate(k))
+            self.nav_buttons[key] = btn
+            nav.add_widget(btn)
+        self.root_ui.add_widget(nav)
+
+    def navigate(self, page):
+        for key, btn in self.nav_buttons.items():
+            btn.background_color = PURPLE if key == page else (0.22, 0.08, 0.31, 1)
+        if page == "home":
+            self.show_home()
+        elif page == "downloads":
+            self.show_downloads()
+        else:
+            self.show_settings()
+
+    def reset_content(self):
+        self.content.clear_widgets()
+
+    def show_home(self):
+        self.reset_content()
+        scroll = ScrollView(do_scroll_x=False)
+        body = BoxLayout(orientation="vertical", size_hint_y=None,
+                         spacing=dp(12), padding=[0, dp(4), 0, dp(10)])
+        body.bind(minimum_height=body.setter("height"))
+        body.add_widget(self.section_title("Your downloads, your kingdom.",
+                                           "Paste a link and let Zaimon handle the rest."))
+
+        url_card = self.make_card(padding=dp(12), spacing=dp(8))
+        url_card.height = dp(112)
+        url_card.add_widget(ZLabel(text="VIDEO OR AUDIO LINK", size=10,
+                                   color=MUTED, bold=True, size_hint_y=None,
+                                   height=dp(18)))
+        row = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(6))
+        self.url_input = TextInput(hint_text="Paste video link here...",
+                                   multiline=False, font_size=sp(14),
+                                   foreground_color=WHITE,
+                                   hint_text_color=MUTED,
+                                   background_normal="",
+                                   background_active="",
+                                   background_color=CARD_2,
+                                   padding=[dp(12), dp(13)],
+                                   cursor_color=PINK)
+        row.add_widget(self.url_input)
+        paste = ZButton(text="PASTE", bg=(0.36, 0.10, 0.55, 1),
+                        size_hint_x=None, width=dp(76))
+        paste.bind(on_release=self.paste_clipboard)
+        row.add_widget(paste)
+        url_card.add_widget(row)
+        body.add_widget(url_card)
+
+        body.add_widget(ZLabel(text="DOWNLOAD AS", size=11, color=MUTED,
+                               bold=True, size_hint_y=None, height=dp(20)))
+        mode_row = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
+        self.mode_spinner = Spinner(text="Video (MP4)",
+                                    values=("Video (MP4)", "Audio (MP3)"),
+                                    background_normal="",
+                                    background_color=(0.38, 0.10, 0.58, 1),
+                                    color=WHITE, font_size=sp(13))
+        self.quality_spinner = Spinner(text="Best quality",
+                                       values=("Best quality", "1080p", "720p",
+                                               "480p", "360p"),
+                                       background_normal="",
+                                       background_color=CARD_2,
+                                       color=WHITE, font_size=sp(13))
+        mode_row.add_widget(self.mode_spinner)
+        mode_row.add_widget(self.quality_spinner)
+        body.add_widget(mode_row)
+
+        self.download_btn = ZButton(text="⇩   DOWNLOAD",
+                                    bg=(0.68, 0.10, 0.92, 1),
+                                    size_hint_y=None, height=dp(56),
+                                    font_size=sp(18))
+        self.download_btn.bind(on_release=self.on_download)
+        body.add_widget(self.download_btn)
+
+        progress_card = self.make_card(padding=dp(12), spacing=dp(7))
+        progress_card.height = dp(92)
+        progress_card.add_widget(ZLabel(text="DOWNLOAD PROGRESS", size=10,
+                                        color=MUTED, bold=True,
+                                        size_hint_y=None, height=dp(16)))
+        self.progress_bar = ProgressBar(max=100, value=self.root_ui.progress_value,
+                                        size_hint_y=None, height=dp(8))
+        progress_card.add_widget(self.progress_bar)
+        self.status_label = ZLabel(text=self.root_ui.status_text, size=12)
+        progress_card.add_widget(self.status_label)
+        body.add_widget(progress_card)
+
+        tip = ZLabel(text="Only download content you own or have permission to save.",
+                     size=10, color=MUTED, size_hint_y=None, height=dp(34))
+        body.add_widget(tip)
+        scroll.add_widget(body)
+        self.content.add_widget(scroll)
+
+    def paste_clipboard(self, *_):
+        try:
+            from kivy.core.clipboard import Clipboard
+            value = Clipboard.paste()
+            if value:
+                self.url_input.text = value.strip()
+                self.root_ui.status_text = "Link pasted. Ready to download."
+                self.status_label.text = self.root_ui.status_text
+        except Exception:
+            self.root_ui.status_text = "Clipboard unavailable. Paste the link manually."
+            self.status_label.text = self.root_ui.status_text
+
+    def on_download(self, *_):
+        link = self.url_input.text.strip()
         if not re.match(r"^https?://", link, re.IGNORECASE):
-            self.root_widget.status_text = "Please paste a valid http or https link."
+            self.set_status("Please paste a valid http or https link.")
             return
         if yt_dlp is None:
-            self.root_widget.status_text = "Download engine is unavailable in this build."
+            self.set_status("Download engine is unavailable in this build.")
             return
         if self.download_running:
-            self.root_widget.status_text = "A download is already running. Please wait."
+            self.set_status("A download is already running. Please wait.")
             return
-        if mode == "MP3 Audio":
-            self.root_widget.status_text = "MP3 conversion needs FFmpeg. Not enabled in this build yet."
+
+        mode = self.mode_spinner.text
+        if mode == "Audio (MP3)":
+            self.set_status("MP3 conversion is not enabled yet. Choose Video (MP4).")
             return
 
         self.download_running = True
-        self.root_widget.progress_value = 0
-        self.root_widget.status_text = "Starting download..."
-        threading.Thread(target=self.download_worker, args=(link, quality), daemon=True).start()
+        self.download_btn.disabled = True
+        self.root_ui.progress_value = 0
+        self.progress_bar.value = 0
+        self.set_status("Starting download...")
+        threading.Thread(target=self.download_worker,
+                         args=(link, self.quality_spinner.text),
+                         daemon=True).start()
 
     def download_worker(self, link, quality):
         try:
@@ -145,7 +290,6 @@ class ZaimonApp(App):
             if quality != "Best quality":
                 height = quality.replace("p", "")
                 fmt = f"best[height<={height}][ext=mp4]/best[height<={height}]/best"
-
             options = {
                 "format": fmt,
                 "outtmpl": os.path.join(self.download_dir, "%(title).100s.%(ext)s"),
@@ -160,43 +304,130 @@ class ZaimonApp(App):
                 info = downloader.extract_info(link, download=True)
                 filename = downloader.prepare_filename(info)
 
-            final_file = filename
-            # Publish the completed video to Android shared media storage.
-            if SharedStorage is not None and os.path.isfile(final_file):
-                shared = SharedStorage().copy_to_shared(final_file)
-                if shared:
-                    final_message = "Download complete. Saved to your public Movies collection."
-                else:
-                    final_message = "Downloaded privately, but could not publish to shared storage."
-            else:
-                final_message = "Download complete in Zaimon's private folder."
+            message = "Download complete. Saved in Zaimon's folder."
+            if SharedStorage is not None and os.path.isfile(filename):
+                try:
+                    shared = SharedStorage().copy_to_shared(filename)
+                    if shared:
+                        message = "Download complete. Saved to shared storage."
+                except Exception:
+                    pass
 
-            Clock.schedule_once(lambda dt, m=final_message: self.finish(m), 0)
+            item = {
+                "title": info.get("title") or os.path.basename(filename),
+                "filename": os.path.basename(filename),
+                "path": filename,
+                "mode": "Video",
+                "date": datetime.now().strftime("%d %b %Y, %I:%M %p"),
+                "status": "Completed",
+            }
+            Clock.schedule_once(lambda dt, x=item, m=message: self.finish_download(x, m), 0)
         except Exception as error:
             message = str(error).replace("\n", " ")[:180]
-            Clock.schedule_once(lambda dt, m=message: self.finish("Download failed: " + m), 0)
+            Clock.schedule_once(lambda dt, m=message: self.finish_download(None, "Download failed: " + m), 0)
 
     def progress_hook(self, data):
         if data.get("status") == "downloading":
-            percent_text = data.get("_percent_str", "0%").replace("%", "").strip()
             try:
-                percent = float(percent_text)
+                value = float(str(data.get("_percent_str", "0%")).replace("%", "").strip())
             except Exception:
                 total = data.get("total_bytes") or data.get("total_bytes_estimate") or 0
-                percent = (data.get("downloaded_bytes", 0) / total * 100) if total else 0
-            Clock.schedule_once(lambda dt, p=percent: self.set_progress(p), 0)
+                value = (data.get("downloaded_bytes", 0) / total * 100) if total else 0
+            Clock.schedule_once(lambda dt, v=value: self.update_progress(v), 0)
         elif data.get("status") == "finished":
-            Clock.schedule_once(lambda dt: self.set_progress(100), 0)
+            Clock.schedule_once(lambda dt: self.update_progress(100), 0)
 
-    def set_progress(self, value):
-        self.root_widget.progress_value = max(0, min(100, value))
-        self.root_widget.status_text = f"Downloading... {value:.1f}%"
+    def update_progress(self, value):
+        self.root_ui.progress_value = max(0, min(100, value))
+        if hasattr(self, "progress_bar"):
+            self.progress_bar.value = self.root_ui.progress_value
+        if hasattr(self, "status_label"):
+            self.status_label.text = f"Downloading... {value:.1f}%"
 
-    def finish(self, message):
+    def set_status(self, message):
+        self.root_ui.status_text = message
+        if hasattr(self, "status_label"):
+            self.status_label.text = message
+
+    def finish_download(self, item, message):
         self.download_running = False
-        self.root_widget.status_text = message
-        if message.startswith("Download complete") or message.startswith("Downloaded privately"):
-            self.root_widget.progress_value = 100
+        if hasattr(self, "download_btn"):
+            self.download_btn.disabled = False
+        self.set_status(message)
+        if item:
+            self.history.insert(0, item)
+            self.save_history()
+            self.root_ui.progress_value = 100
+            if hasattr(self, "progress_bar"):
+                self.progress_bar.value = 100
+
+    def load_history(self):
+        try:
+            with open(self.history_path, "r", encoding="utf-8") as file:
+                return json.load(file)
+        except Exception:
+            return []
+
+    def save_history(self):
+        try:
+            with open(self.history_path, "w", encoding="utf-8") as file:
+                json.dump(self.history, file, indent=2)
+        except Exception:
+            pass
+
+    def show_downloads(self):
+        self.reset_content()
+        body = BoxLayout(orientation="vertical", spacing=dp(10))
+        body.add_widget(self.section_title("Downloads", "Your recent Zaimon downloads."))
+        if not self.history:
+            empty = Panel(orientation="vertical", padding=dp(20),
+                          spacing=dp(8))
+            empty.add_widget(ZLabel(text="🐾", size=36, color=PINK,
+                                    halign="center"))
+            empty.add_widget(ZLabel(text="No downloads yet", size=17,
+                                    bold=True, halign="center"))
+            empty.add_widget(ZLabel(text="Your completed files will appear here.",
+                                    size=11, color=MUTED, halign="center"))
+            body.add_widget(empty)
+        else:
+            scroll = ScrollView()
+            listing = GridLayout(cols=1, spacing=dp(8), size_hint_y=None)
+            listing.bind(minimum_height=listing.setter("height"))
+            for item in self.history:
+                card = Panel(orientation="vertical", size_hint_y=None,
+                             height=dp(82), padding=dp(10), spacing=dp(3))
+                card.add_widget(ZLabel(text=item.get("title", "Downloaded file"),
+                                       size=13, bold=True))
+                card.add_widget(ZLabel(text=item.get("filename", ""),
+                                       size=10, color=MUTED))
+                card.add_widget(ZLabel(text=item.get("date", "Completed"),
+                                       size=10, color=GREEN))
+                listing.add_widget(card)
+            scroll.add_widget(listing)
+            body.add_widget(scroll)
+        self.content.add_widget(body)
+
+    def show_settings(self):
+        self.reset_content()
+        body = BoxLayout(orientation="vertical", spacing=dp(12))
+        body.add_widget(self.section_title("Settings", "Make Zaimon feel at home."))
+        about = self.make_card(padding=dp(16), spacing=dp(8))
+        about.add_widget(ZLabel(text="ZAIMON THE MOTE SHAHZADE", size=14,
+                                bold=True))
+        about.add_widget(ZLabel(text="Version 1.1  •  Purple Royal Edition",
+                                size=11, color=MUTED))
+        about.add_widget(ZLabel(text="Downloads are stored in the app's private folder. "
+                                     "Some Android builds may also copy videos to shared storage.",
+                                size=11, color=MUTED))
+        body.add_widget(about)
+        note = self.make_card(padding=dp(16), spacing=dp(8))
+        note.add_widget(ZLabel(text="SUPPORTED FORMAT", size=11, color=MUTED,
+                               bold=True))
+        note.add_widget(ZLabel(text="MP4 video downloads are enabled. MP3 conversion "
+                                    "will be added with an Android-compatible FFmpeg build.",
+                                size=12))
+        body.add_widget(note)
+        self.content.add_widget(body)
 
 
 if __name__ == "__main__":
