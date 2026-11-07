@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - '**/*.py'
+      - 'buildozer.spec'
+      - '.github/workflows/**'
 
 permissions:
   contents: read
@@ -12,19 +16,19 @@ permissions:
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
+    timeout-minutes: 120
 
     steps:
       # 1. Checkout repository
       - name: Checkout source
         uses: actions/checkout@v4
 
-      # 2. Install dependencies
+      # 2. Install system dependencies (Removed ant and openjdk, handled by setup-java and gradle)
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git zip unzip ant \
-            openjdk-17-jdk \
+            git zip unzip \
             python3-pip python3-venv \
             build-essential autoconf libtool \
             pkg-config zlib1g-dev libncurses5-dev \
@@ -41,36 +45,35 @@ jobs:
       - name: Verify Java 17
         run: |
           echo "JAVA_HOME=$JAVA_HOME"
-          echo "$JAVA_HOME/bin" >> "$GITHUB_PATH"
           java -version
           javac -version
-          readlink -f "$(which java)"
 
-      # 5. Cache Android tools
-      - name: Cache Buildozer and Android SDK/NDK
+      # 5. Cache Android SDK/NDK only (Saves ~2GB of cache space and speeds up builds)
+      - name: Cache Android SDK/NDK
         uses: actions/cache@v4
         with:
           path: |
-            ~/.buildozer
-            .buildozer
-          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+            ~/.buildozer/android/platform
+            ~/.buildozer/android/app
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-v1
           restore-keys: |
             buildozer-${{ runner.os }}-
 
-      # 6. Install Buildozer
+      # 6. Install Buildozer using a virtual environment (Fixes Ubuntu 22.04 pip errors)
       - name: Install Buildozer
         run: |
-          python3 -m pip install --user --upgrade pip
-          python3 -m pip install --user buildozer cython==0.29.36
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install buildozer "cython==0.29.33"
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       # 7. Build Android APK
       - name: Build APK
         run: |
-          export JAVA_HOME
-          export ANT_HOME=/usr/share/ant
-          export PATH="$JAVA_HOME/bin:$ANT_HOME/bin:$HOME/.local/bin:/usr/bin:$PATH"
-          ant -version
-          buildozer android debug
+          source .venv/bin/activate
+          export PATH="$JAVA_HOME/bin:$PATH"
+          buildozer -v android debug
 
       # 8. Upload APK
       - name: Upload APK
