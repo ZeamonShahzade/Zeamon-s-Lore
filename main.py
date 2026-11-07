@@ -19,20 +19,14 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.spinner import Spinner
 from kivy.uix.progressbar import ProgressBar
-from kivy.uix.widget import Widget
 from kivy.uix.image import Image as KivyImage
 
+APP_VERSION = "1.0.0"
+
 class YTDLPLogger:
-    """Keep yt-dlp messages away from Android's redirected console streams."""
-    def debug(self, message):
-        pass
-
-    def warning(self, message):
-        pass
-
-    def error(self, message):
-        pass
-
+    def debug(self, message): pass
+    def warning(self, message): pass
+    def error(self, message): pass
 
 try:
     import yt_dlp
@@ -43,7 +37,6 @@ try:
     from androidstorage4kivy import SharedStorage
 except Exception:
     SharedStorage = None
-
 
 # Zaemon: midnight-purple visual system
 BG = (0.018, 0.012, 0.032, 1)
@@ -56,7 +49,6 @@ WHITE = (0.97, 0.94, 1, 1)
 MUTED = (0.69, 0.62, 0.76, 1)
 GREEN = (0.43, 0.91, 0.67, 1)
 RED = (1, 0.36, 0.46, 1)
-
 
 class Panel(BoxLayout):
     def __init__(self, bg=CARD, radius=18, **kwargs):
@@ -73,7 +65,6 @@ class Panel(BoxLayout):
         self._shape.pos = self.pos
         self._shape.size = self.size
 
-
 class ZButton(Button):
     def __init__(self, bg=PURPLE, fg=WHITE, **kwargs):
         super().__init__(**kwargs)
@@ -85,7 +76,6 @@ class ZButton(Button):
         self.bold = True
         self.halign = "center"
         self.valign = "middle"
-
 
 class ZLabel(Label):
     def __init__(self, color=WHITE, size=14, bold=False, **kwargs):
@@ -102,19 +92,15 @@ class ZLabel(Label):
     def _update_text_size(self, *_):
         self.text_size = (self.width, None)
 
-
 class ZaemonRoot(BoxLayout):
     status_text = StringProperty("Ready when you are.")
     progress_value = NumericProperty(0)
-
 
 class ZaemonApp(App):
     def build(self):
         self.title = "Zaemon Mote Shahzade"
         Window.clearcolor = BG
-        self.download_dir = os.path.join(
-            self.user_data_dir, "Downloads", "Zaemon"
-        )
+        self.download_dir = os.path.join(self.user_data_dir, "Downloads", "Zaemon")
         os.makedirs(self.download_dir, exist_ok=True)
         self.history_path = os.path.join(self.user_data_dir, "history.json")
         self.history = self.load_history()
@@ -134,14 +120,21 @@ class ZaemonApp(App):
         self.navigate("home")
         return self.root_ui
 
+    def _logo_source(self):
+        path = os.path.join(os.path.dirname(__file__), "app_logo.png")
+        return path if os.path.isfile(path) else ""
+
+    def _hero_source(self):
+        path = os.path.join(os.path.dirname(__file__), "zaemon_hero.png")
+        return path if os.path.isfile(path) else self._logo_source()
+
     def build_header(self):
         header = BoxLayout(
             size_hint_y=None, height=dp(62), spacing=dp(9),
             padding=[dp(2), dp(3), dp(2), dp(3)],
         )
-        logo_path = os.path.join(os.path.dirname(__file__), "app_logo.png")
         logo = KivyImage(
-            source=logo_path, size_hint=(None, None),
+            source=self._logo_source(), size_hint=(None, None),
             size=(dp(48), dp(48)), allow_stretch=True, keep_ratio=True,
         )
         header.add_widget(logo)
@@ -225,8 +218,9 @@ class ZaemonApp(App):
             padding=[dp(10), dp(9)], spacing=dp(8),
             bg=(0.075, 0.025, 0.12, 1),
         )
+        # Uses the zaemon_hero.png from your repo
         hero_logo = KivyImage(
-            source=os.path.join(os.path.dirname(__file__), "app_logo.png"),
+            source=self._hero_source(),
             size_hint=(None, 1), width=dp(132),
             allow_stretch=True, keep_ratio=True,
         )
@@ -337,7 +331,8 @@ class ZaemonApp(App):
         mode = self.mode_spinner.text
         if mode == "Audio (MP3)":
             self.set_status(
-                "MP3 conversion needs an Android FFmpeg build. Video mode is ready."
+                "MP3 needs FFmpeg, which isn't bundled in this build. "
+                "Video mode is ready."
             )
             return
 
@@ -360,9 +355,7 @@ class ZaemonApp(App):
                 fmt = f"best[height<={height}]/best"
             options = {
                 "format": fmt,
-                "outtmpl": os.path.join(
-                    self.download_dir, "%(title).100s.%(ext)s"
-                ),
+                "outtmpl": os.path.join(self.download_dir, "%(title).100s.%(ext)s"),
                 "noplaylist": True,
                 "quiet": True,
                 "no_warnings": True,
@@ -372,13 +365,8 @@ class ZaemonApp(App):
                 "fragment_retries": 3,
                 "progress_hooks": [self.progress_hook],
             }
-            # Kivy redirects stderr to its own logger stream. yt-dlp may
-            # write to stderr internally, so give it a normal file stream
-            # while the download runs, then restore Kivy's stream.
             original_stderr = sys.stderr
-            error_log_path = os.path.join(
-                self.user_data_dir, "yt_dlp_errors.log"
-            )
+            error_log_path = os.path.join(self.user_data_dir, "yt_dlp_errors.log")
             try:
                 with open(error_log_path, "a", encoding="utf-8") as error_log:
                     sys.stderr = error_log
@@ -387,6 +375,9 @@ class ZaemonApp(App):
                         filename = downloader.prepare_filename(info)
             finally:
                 sys.stderr = original_stderr
+
+            if not info or not filename:
+                raise RuntimeError("Could not extract video information.")
 
             message = "Download complete. Saved in Zaemon's folder."
             if SharedStorage is not None and os.path.isfile(filename):
@@ -431,7 +422,6 @@ class ZaemonApp(App):
                     data.get("downloaded_bytes", 0) / total * 100
                     if total else 0
                 )
-            downloaded = data.get("_downloaded_bytes_str") or ""
             speed = data.get("_speed_str") or ""
             detail = f"{value:.1f}%"
             if speed:
@@ -484,6 +474,17 @@ class ZaemonApp(App):
         except Exception:
             pass
 
+    def set_history_filter(self, value):
+        self.history_filter = value
+        self.navigate("downloads")
+
+    def clear_history(self, *_):
+        if not self.history:
+            return
+        self.history = []
+        self.save_history()
+        self.navigate("settings")
+
     def show_downloads(self):
         scroll = ScrollView(do_scroll_x=False, bar_width=dp(2))
         body = BoxLayout(orientation="vertical", size_hint_y=None,
@@ -535,105 +536,92 @@ class ZaemonApp(App):
             ))
             body.add_widget(empty)
         else:
-            scroll = ScrollView(do_scroll_x=False, bar_width=dp(3))
-            listing = GridLayout(
-                cols=1, spacing=dp(8), size_hint_y=None,
-            )
-            listing.bind(minimum_height=listing.setter("height"))
             for item in selected:
                 card = Panel(
                     orientation="horizontal", size_hint_y=None,
-                    height=dp(78), padding=dp(10), spacing=dp(9),
+                    height=dp(86), padding=dp(10), spacing=dp(10),
                     bg=CARD,
                 )
                 icon = Panel(
                     size_hint=(None, None), size=(dp(52), dp(52)),
-                    bg=(0.22, 0.07, 0.31, 1), padding=dp(3),
+                    bg=CARD_ALT, radius=12,
                 )
                 icon.add_widget(ZLabel(
-                    text="A" if item.get("mode") == "Audio" else "V",
-                    size=22, color=PINK, halign="center",
+                    text="VID" if item.get("mode") == "Video" else "AUD",
+                    size=10, color=PINK, bold=True, halign="center",
                 ))
                 card.add_widget(icon)
-                details = BoxLayout(orientation="vertical", spacing=dp(2))
-                details.add_widget(ZLabel(
-                    text=item.get("title", "Downloaded file"),
-                    size=11, bold=True,
-                ))
-                details.add_widget(ZLabel(
-                    text=item.get("filename", ""),
+
+                info = BoxLayout(orientation="vertical", spacing=dp(2))
+                title = item.get("title", "Unknown")
+                info.add_widget(ZLabel(text=title[:64], size=12, bold=True))
+                info.add_widget(ZLabel(
+                    text=f'{item.get("mode","Video")}  •  {item.get("date","")}',
                     size=9, color=MUTED,
                 ))
-                details.add_widget(ZLabel(
-                    text=item.get("date", "Completed") + "  -  Completed",
-                    size=9, color=GREEN,
+                info.add_widget(ZLabel(
+                    text=item.get("filename", ""), size=9, color=MUTED,
                 ))
-                card.add_widget(details)
-                listing.add_widget(card)
-            scroll.add_widget(listing)
-            body.add_widget(scroll)
+                card.add_widget(info)
+                body.add_widget(card)
 
         scroll.add_widget(body)
         self.content.add_widget(scroll)
 
-    def set_history_filter(self, value):
-        self.history_filter = value
-        self.navigate("downloads")
-
     def show_settings(self):
         scroll = ScrollView(do_scroll_x=False, bar_width=dp(2))
-        body = BoxLayout(
-            orientation="vertical", size_hint_y=None,
-            spacing=dp(10), padding=[dp(1), dp(5), dp(1), dp(14)],
-        )
+        body = BoxLayout(orientation="vertical", size_hint_y=None,
+                         spacing=dp(10), padding=[dp(1), dp(5), dp(1), dp(12)])
         body.bind(minimum_height=body.setter("height"))
         body.add_widget(self.section_title(
-            "Settings", "Make Zaemon feel at home."
+            "Settings", "Storage, history, and about."
         ))
 
-        storage = self.make_card(height=112, padding=dp(12), spacing=dp(6))
+        storage = self.make_card(height=110, padding=dp(12), spacing=dp(6))
         storage.add_widget(ZLabel(
-            text="DOWNLOAD LOCATION", size=10, color=PINK, bold=True,
-            size_hint_y=None, height=dp(17),
+            text="DOWNLOAD FOLDER", size=10, color=PINK, bold=True,
+            size_hint_y=None, height=dp(16),
         ))
         storage.add_widget(ZLabel(
             text=self.download_dir, size=10, color=WHITE,
-            size_hint_y=None, height=dp(68),
         ))
         body.add_widget(storage)
 
-        about = self.make_card(height=112, padding=dp(12), spacing=dp(5))
+        history_card = self.make_card(height=125, padding=dp(12), spacing=dp(7))
+        history_card.add_widget(ZLabel(
+            text="HISTORY", size=10, color=PINK, bold=True,
+            size_hint_y=None, height=dp(16),
+        ))
+        history_card.add_widget(ZLabel(
+            text=f"{len(self.history)} download(s) recorded.",
+            size=11, color=WHITE,
+        ))
+        clear_btn = ZButton(
+            text="CLEAR HISTORY", bg=RED,
+            size_hint_y=None, height=dp(42), font_size=sp(12),
+        )
+        clear_btn.bind(on_release=self.clear_history)
+        history_card.add_widget(clear_btn)
+        body.add_widget(history_card)
+
+        about = self.make_card(height=150, padding=dp(12), spacing=dp(6))
         about.add_widget(ZLabel(
-            text="ZAEMON MOTE SHAHZADE", size=13, bold=True,
-            size_hint_y=None, height=dp(21),
+            text="ABOUT", size=10, color=PINK, bold=True,
+            size_hint_y=None, height=dp(16),
         ))
         about.add_widget(ZLabel(
-            text="Version 1.3  |  Royal Purple Edition",
-            size=10, color=MUTED, size_hint_y=None, height=dp(17),
+            text="ZAEMON — Mote Shahzade", size=14, bold=True,
         ))
         about.add_widget(ZLabel(
-            text="Video downloads powered by yt-dlp. Save only content you have permission to download.",
-            size=10, color=MUTED, size_hint_y=None, height=dp(48),
+            text="Video downloader for personal use only.\n"
+                 "Only save content you own or have permission to download.",
+            size=10, color=MUTED,
+        ))
+        about.add_widget(ZLabel(
+            text=f"v{APP_VERSION}", size=10, color=PINK,
         ))
         body.add_widget(about)
 
-        formats = self.make_card(height=112, padding=dp(12), spacing=dp(6))
-        formats.add_widget(ZLabel(
-            text="FORMAT SUPPORT", size=10, color=PINK, bold=True,
-            size_hint_y=None, height=dp(17),
-        ))
-        formats.add_widget(ZLabel(
-            text="MP4 video: available when provided by source.\nMP3 audio: not enabled in this build (FFmpeg required).",
-            size=10, color=WHITE, size_hint_y=None, height=dp(70),
-        ))
-        body.add_widget(formats)
-
-        logo_card = self.make_card(height=94, padding=dp(10), spacing=dp(4))
-        logo_card.add_widget(KivyImage(
-            source=os.path.join(os.path.dirname(__file__), "app_logo.png"),
-            size_hint=(1, 1), allow_stretch=True, keep_ratio=True,
-        ))
-        body.add_widget(logo_card)
         scroll.add_widget(body)
         self.content.add_widget(scroll)
 
