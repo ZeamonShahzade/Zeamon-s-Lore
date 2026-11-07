@@ -1,5 +1,13 @@
 name: Build Zaimon APK (Debug)
 
+      - name: Build APK
+        run: |
+          export JAVA_HOME
+          export PATH="$JAVA_HOME/bin:$HOME/.local/bin:/usr/bin:$PATH"
+          export ANT_HOME=/usr/share/ant
+          export PATH="$ANT_HOME/bin:$PATH"
+          ant -version
+          buildozer android debug
 on:
   workflow_dispatch:
   push:
