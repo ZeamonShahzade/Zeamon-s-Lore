@@ -8,7 +8,7 @@ source.include_exts = py,kv,json,png,jpg
 version = 1.0.0
 
 # App icon
-icon.filename = %(source.dir)s/icon.png
+
 
 # Python requirements
 requirements = python3,kivy,yt-dlp,androidstorage4kivy
